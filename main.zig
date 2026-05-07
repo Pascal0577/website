@@ -26,6 +26,11 @@ fn handleConnectionWrapper(io: std.Io, stream: std.Io.net.Stream) error{Canceled
     };
 }
 
+const RequestResult = union(enum) {
+    request: http.Server.ReceiveHeadError!http.Server.Request,
+    timer: error{Canceled}!void,
+};
+
 fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
     var read_buffer: [4096]u8 = undefined;
     var reader = stream.reader(io, &read_buffer);
@@ -36,9 +41,23 @@ fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
     var http_server = http.Server.init(&reader.interface, &writer.interface);
 
     while (true) {
-        var request = http_server.receiveHead() catch |err| switch (err) {
-            error.HttpConnectionClosing => return,
-            else => return err,
+        var buf: [2]RequestResult = undefined;
+        var select = std.Io.Select(RequestResult).init(io, &buf);
+
+        select.async(.request, std.http.Server.receiveHead, .{&http_server});
+        select.async(.timer, std.Io.sleep, .{ io, .fromSeconds(5), .awake });
+        var request = switch (try select.await()) {
+            .timer => {
+                select.cancelDiscard();
+                return error.Timeout;
+            },
+            .request => |r| blk: {
+                select.cancelDiscard();
+                break :blk r catch |err| switch (err) {
+                    error.HttpConnectionClosing => return,
+                    else => return err,
+                };
+            },
         };
 
         const keep_alive = request.head.keep_alive;
