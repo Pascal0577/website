@@ -18,7 +18,7 @@
 
         packages = forAllSystems (system: pkgs: {
             default = pkgs.stdenv.mkDerivation {
-                name = "my-webserver";
+                name = "pscl-webserver";
                 version = "1.0.0";
                 src = ./.;
 
@@ -81,7 +81,7 @@
                         networking.firewall.allowedTCPPorts = [ 8080 ];
                         networking.useHostResolvConf = lib.mkForce false;
 
-                        users.users.webserver = {
+                        users.users.pscl-webserver = {
                             isSystemUser = true;
                             group = "webserver";
                             home = "/var/lib/webserver";
@@ -89,17 +89,17 @@
                         };
                         users.groups.webserver = {};
 
-                        systemd.services.webserver = {
+                        systemd.services.pscl-webserver = {
                             enable = true;
                             after = [ "network.target" "network-online.target" "content-sync.service" ];
-                            wants = [ "content-sync.service" ];
+                            wants = [  "network-online.target" "content-sync.service" ];
                             wantedBy = [ "multi-user.target" ];
                             serviceConfig = {
                                 Type = "simple";
                                 ExecStart = lib.getExe pkg;
-                                User = "webserver";
-                                StateDirectory = "webserver";
-                                WorkingDirectory = "/var/lib/webserver/website";
+                                User = "pscl-webserver";
+                                StateDirectory = "pscl-webserver";
+                                WorkingDirectory = "/var/lib/pscl-webserver/website";
                             };
                         };
 
@@ -109,7 +109,7 @@
                             requires = [ "systemd-resolved.service" "network-online.target" ];
                             wantedBy = [ "multi-user.target" ];
                             script = ''
-                                if [ -d /var/lib/webserver/website/.git ]; then
+                                if [ -d /var/lib/pscl-webserver/website/.git ]; then
                                   ${pkgs.git}/bin/git -C /var/lib/webserver/website pull
                                 else
                                   ${pkgs.git}/bin/git clone https://github.com/Pascal0577/website /var/lib/webserver/website
@@ -117,8 +117,8 @@
                             '';
                             serviceConfig = {
                                 Type = "oneshot";
-                                User = "webserver";
-                                StateDirectory = "webserver";
+                                User = "pscl-webserver";
+                                StateDirectory = "pscl-webserver";
                             };
                         };
 
