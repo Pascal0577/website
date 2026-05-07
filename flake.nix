@@ -69,7 +69,7 @@
                     trustedInterfaces = [ "ve-+" ];
                 };
 
-                containers.webserver = {
+                containers.pscl-webserver = {
                     autoStart = true;
                     privateNetwork = true;
                     privateUsers = "pick";
