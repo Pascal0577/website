@@ -1,25 +1,17 @@
 {
-    inputs = {
-        nixpkgs.url = "nixpkgs";
-        zig.url = "github:silversquirl/zig-flake/compat";
-        zls.url = "github:zigtools/zls";
+    inputs.nixpkgs.url = "nixpkgs";
 
-        zig.inputs.nixpkgs.follows = "nixpkgs";
-        zls.inputs.nixpkgs.follows = "nixpkgs";
-        zls.inputs.zig-flake.follows = "zig";
-    };
-
-    outputs = { self, nixpkgs, zig, zls, ... }:
+    outputs = { self, nixpkgs, ... }:
     let
         forAllSystems = f: builtins.mapAttrs f nixpkgs.legacyPackages;
     in {
         devShells = forAllSystems (system: pkgs: {
             default = pkgs.mkShellNoCC {
-                buildInputs = [
-                    zig.packages.${system}.nightly
-                    zls.packages.${system}.zls
-                    pkgs.zig-shell-completions
-                    pkgs.vscode-langservers-extracted
+                buildInputs = with pkgs; [
+                    zig_0_16
+                    zls_0_16
+                    zig-shell-completions
+                    vscode-langservers-extracted
                 ];
             };
         });
@@ -30,12 +22,12 @@
                 version = "1.0.0";
                 src = ./.;
 
-                nativeBuildInputs = [ zig.packages.${system}.nightly ];
+                nativeBuildInputs = [ pkgs.zig_0_16 ];
 
                 buildPhase = ''
                     rm -rf $out
                     local cache=$(mktemp -d)
-                    zig build --release=safe --prefix $out --global-cache-dir "$cache"
+                    ${pkgs.zig_0_16}/bin/zig build --release=safe --prefix $out --global-cache-dir "$cache"
                 '';
 
                 installPhase = "true";

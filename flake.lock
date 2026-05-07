@@ -16,53 +16,7 @@
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs",
-        "zig": "zig",
-        "zls": "zls"
-      }
-    },
-    "zig": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1777897499,
-        "narHash": "sha256-2Jgxzl9gmJg2wEmmXw+8UApqlIXgy/enlcizNPoUuOY=",
-        "owner": "silversquirl",
-        "repo": "zig-flake",
-        "rev": "d300c6802dc40b70f352ce9117e96208a7748d99",
-        "type": "github"
-      },
-      "original": {
-        "owner": "silversquirl",
-        "ref": "compat",
-        "repo": "zig-flake",
-        "type": "github"
-      }
-    },
-    "zls": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "zig-flake": [
-          "zig"
-        ]
-      },
-      "locked": {
-        "lastModified": 1777913044,
-        "narHash": "sha256-aOV1yRIIqGXR0h1vooyFR03uXbFwgNTCxiqVrKtQYMQ=",
-        "owner": "zigtools",
-        "repo": "zls",
-        "rev": "9c0e53c9b0c68923341530aafe166a04ba5db5e0",
-        "type": "github"
-      },
-      "original": {
-        "owner": "zigtools",
-        "repo": "zls",
-        "type": "github"
+        "nixpkgs": "nixpkgs"
       }
     }
   },
