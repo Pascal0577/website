@@ -34,7 +34,7 @@
 
                 dontUseZigCheck = true;
 
-                meta.mainProgram = "webserver";
+                meta.mainProgram = "pscl-webserver";
             };
         });
 
