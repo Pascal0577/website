@@ -52,10 +52,14 @@
         in {
             options.pscl-webserver = {
                 enable = lib.mkEnableOption "My webserver";
-                interface = lib.mkDefault "eth0";
+                interface = lib.mkOption {
+                    type = lib.types.str;
+                    default = "eth0";
+                    description = "External network interface for NAT";
+                };
             };
 
-            config = lib.mkIf config.mySystem.enableWebserver {
+            config = lib.mkIf config.pscl-webserver.enable {
                 networking.nat = {
                     enable = true;
                     internalInterfaces = [ "ve-+" ];
