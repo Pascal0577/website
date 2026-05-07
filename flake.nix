@@ -19,6 +19,7 @@
                     zig.packages.${system}.nightly
                     zls.packages.${system}.zls
                     pkgs.zig-shell-completions
+                    pkgs.vscode-langservers-extracted
                 ];
             };
         });
