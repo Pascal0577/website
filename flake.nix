@@ -41,11 +41,17 @@
                 installPhase = "true";
 
                 dontUseZigCheck = true;
+
+                meta.mainProgram = "webserver";
             };
         });
 
-        nixosModules.webserver = { pkgs, lib, ... }: {
+        nixosModules.webserver = { pkgs, lib, ... }:
+        let
+            pkg = self.packages.${pkgs.system}.default;
+        in {
             networking.firewall.allowedTCPPorts = [ 80 ];
+            environment.systemPackages = [ pkg ];
 
             users.users.webserver = {
                 isSystemUser = true;
@@ -62,7 +68,7 @@
                 wantedBy = [ "multi-user.target" ];
                 serviceConfig = {
                     Type = "simple";
-                    ExecStart = lib.getExe self.packages.${pkgs.system}.default;
+                    ExecStart = lib.getExe pkg;
                     User = "webserver";
                     StateDirectory = "webserver";
                     WorkingDirectory = "/var/lib/webserver";
