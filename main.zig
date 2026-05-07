@@ -14,12 +14,16 @@ pub fn main(init: std.process.Init) !void {
             std.log.err("accept failed: {s}", .{@errorName(err)});
             continue;
         };
-        defer stream.close(io);
 
-        handleConnection(io, stream) catch |err| {
-            std.log.err("connection error: {s}", .{@errorName(err)});
-        };
+        _ = io.async(handleConnectionWrapper, .{ io, stream });
     }
+}
+
+fn handleConnectionWrapper(io: std.Io, stream: std.Io.net.Stream) error{Canceled}!void {
+    defer stream.close(io);
+    handleConnection(io, stream) catch |err| {
+        std.log.err("connection error: {s}", .{@errorName(err)});
+    };
 }
 
 fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
