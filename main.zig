@@ -47,6 +47,11 @@ fn handleGet(io: std.Io, request: *std.http.Server.Request) !void {
     const target = request.head.target;
     std.debug.print("target: {s}\n", .{target});
 
+    if (std.mem.indexOf(u8, target, "..")) |_| {
+        try request.respond("", .{ .status = .forbidden });
+        return;
+    }
+
     if (std.mem.eql(u8, "/", target)) {
         std.debug.print("redirecting to /home\n", .{});
         try request.respond("", .{
