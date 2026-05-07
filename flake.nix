@@ -52,6 +52,7 @@
             };
 
             config = lib.mkIf config.pscl-webserver.enable {
+                environment.systemPackage = [ pkg ];
                 networking.nat = {
                     enable = true;
                     internalInterfaces = [ "ve-+" ];
