@@ -76,9 +76,12 @@
             };
 
             systemd.services.content-sync = {
+                after = [ "network-online.target" "systemd-resolved.service" ];
+                wants = [ "network-online.target" ];
+                requires = [ "systemd-resolved.service" "network-online.target" ];
                 wantedBy = [ "multi-user.target" ];
                 script = ''
-                    if [ -d /var/lib/webserver/website ]; then
+                    if [ -d /var/lib/webserver ]; then
                       ${pkgs.git}/bin/git -C /var/lib/webserver pull
                     else
                       ${pkgs.git}/bin/git clone https://github.com/Pascal0577/website /var/lib/webserver
