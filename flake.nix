@@ -83,11 +83,11 @@
 
                         users.users.pscl-webserver = {
                             isSystemUser = true;
-                            group = "webserver";
-                            home = "/var/lib/webserver";
+                            group = "pscl-webserver";
+                            home = "/var/lib/pscl-webserver";
                             createHome = true;
                         };
-                        users.groups.webserver = {};
+                        users.groups.pscl-webserver = {};
 
                         systemd.services.pscl-webserver = {
                             enable = true;
@@ -110,9 +110,9 @@
                             wantedBy = [ "multi-user.target" ];
                             script = ''
                                 if [ -d /var/lib/pscl-webserver/website/.git ]; then
-                                  ${pkgs.git}/bin/git -C /var/lib/webserver/website pull
+                                  ${pkgs.git}/bin/git -C /var/lib/pscl-webserver/website pull
                                 else
-                                  ${pkgs.git}/bin/git clone https://github.com/Pascal0577/website /var/lib/webserver/website
+                                  ${pkgs.git}/bin/git clone https://github.com/Pascal0577/website /var/lib/pscl-webserver/website
                                 fi
                             '';
                             serviceConfig = {
