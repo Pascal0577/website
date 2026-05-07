@@ -46,59 +46,103 @@
             };
         });
 
-        nixosModules.webserver = { pkgs, lib, ... }:
+        nixosModules.webserver = { pkgs, lib, config, ... }:
         let
-            pkg = self.packages.${pkgs.system}.default;
+            pkg = self.packages.${pkgs.stdenv.system}.default;
         in {
-            networking.firewall.allowedTCPPorts = [ 80 ];
-            environment.systemPackages = [ pkg ];
-
-            users.users.webserver = {
-                isSystemUser = true;
-                group = "webserver";
-                home = "/var/lib/webserver";
-                createHome = true;
+            options.pscl-webserver = {
+                enable = lib.mkEnableOption "My webserver";
+                interface = lib.mkDefault "eth0";
             };
-            users.groups.webserver = {};
 
-            systemd.services.webserver = {
-                enable = true;
-                after = [ "network.target" "network-online.target" "content-sync.service" ];
-                wants = [ "content-sync.service" ];
-                wantedBy = [ "multi-user.target" ];
-                serviceConfig = {
-                    Type = "simple";
-                    ExecStart = lib.getExe pkg;
-                    User = "webserver";
-                    StateDirectory = "webserver";
-                    WorkingDirectory = "/var/lib/webserver";
+            config = lib.mkIf config.mySystem.enableWebserver {
+                networking.nat = {
+                    enable = true;
+                    internalInterfaces = [ "ve-+" ];
+                    externalInterface = config.pscl-webserver.interface;
+                    forwardPorts = [{
+                        sourcePort = 80;
+                        proto = "tcp";
+                        destination = "10.0.0.2:8080";
+                    }];
                 };
-            };
 
-            systemd.services.content-sync = {
-                after = [ "network-online.target" "systemd-resolved.service" ];
-                wants = [ "network-online.target" ];
-                requires = [ "systemd-resolved.service" "network-online.target" ];
-                wantedBy = [ "multi-user.target" ];
-                script = ''
-                    if [ -d /var/lib/webserver ]; then
-                      ${pkgs.git}/bin/git -C /var/lib/webserver pull
-                    else
-                      ${pkgs.git}/bin/git clone https://github.com/Pascal0577/website /var/lib/webserver
-                    fi
-                '';
-                serviceConfig = {
-                    Type = "oneshot";
-                    User = "webserver";
-                    StateDirectory = "webserver";
+                networking.firewall = {
+                    allowedTCPPorts = [ 80 ];
+                    trustedInterfaces = [ "ve-+" ];
                 };
-            };
 
-            systemd.timers.content-sync = {
-                wantedBy = [ "timers.target" ];
-                timerConfig = {
-                    OnCalendar = "*:0/5";
-                    Persistent = true;
+                containers.webserver = {
+                    autoStart = true;
+                    privateNetwork = true;
+                    privateUsers = "pick";
+                    hostAddress = "10.0.0.1";
+                    localAddress = "10.0.0.2";
+                    restartIfChanged = true;
+                    config = {
+                        system.stateVersion = "26.05";
+                        networking.firewall.allowedTCPPorts = [ 8080 ];
+                        networking.useHostResolvConf = lib.mkForce false;
+
+                        users.users.webserver = {
+                            isSystemUser = true;
+                            group = "webserver";
+                            home = "/var/lib/webserver";
+                            createHome = true;
+                        };
+                        users.groups.webserver = {};
+
+                        systemd.services.webserver = {
+                            enable = true;
+                            after = [ "network.target" "network-online.target" "content-sync.service" ];
+                            wants = [ "content-sync.service" ];
+                            wantedBy = [ "multi-user.target" ];
+                            serviceConfig = {
+                                Type = "simple";
+                                ExecStart = lib.getExe pkg;
+                                User = "webserver";
+                                StateDirectory = "webserver";
+                                WorkingDirectory = "/var/lib/webserver/website";
+                            };
+                        };
+
+                        systemd.services.content-sync = {
+                            after = [ "network-online.target" "systemd-resolved.service" ];
+                            wants = [ "network-online.target" ];
+                            requires = [ "systemd-resolved.service" "network-online.target" ];
+                            wantedBy = [ "multi-user.target" ];
+                            script = ''
+                                if [ -d /var/lib/webserver/website/.git ]; then
+                                  ${pkgs.git}/bin/git -C /var/lib/webserver/website pull
+                                else
+                                  ${pkgs.git}/bin/git clone https://github.com/Pascal0577/website /var/lib/webserver/website
+                                fi
+                            '';
+                            serviceConfig = {
+                                Type = "oneshot";
+                                User = "webserver";
+                                StateDirectory = "webserver";
+                            };
+                        };
+
+                        systemd.timers.content-sync = {
+                            wantedBy = [ "timers.target" ];
+                            timerConfig = {
+                                OnCalendar = "*:0/5";
+                                Persistent = true;
+                            };
+                        };
+
+                        services.resolved = {
+                            enable = true;
+                            settings.Resolve = lib.mkDefault {
+                                DNS = "9.9.9.9#dns.quad9.net";
+                                FallbackDNS = "1.1.1.1#cloudflare-dns.com 8.8.8.8#dns.google";
+                                DNSSEC = true;
+                                DNSOverTLS = true;
+                            };
+                        };
+                    };
                 };
             };
         };

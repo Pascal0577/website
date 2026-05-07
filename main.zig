@@ -5,7 +5,7 @@ const PATH_MAX = std.Io.Dir.max_path_bytes;
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
-    const addr = try net.IpAddress.parse("127.0.0.1", 8080);
+    const addr = try net.IpAddress.parse("0.0.0.0", 8080);
     var server = try addr.listen(io, .{ .reuse_address = true });
     defer server.deinit(io);
 
