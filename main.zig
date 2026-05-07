@@ -29,20 +29,28 @@ fn handleConnectionWrapper(io: std.Io, stream: std.Io.net.Stream) error{Canceled
 fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
     var read_buffer: [4096]u8 = undefined;
     var reader = stream.reader(io, &read_buffer);
-    const reader_impl = &reader.interface;
 
     var write_buffer: [4096]u8 = undefined;
     var writer = stream.writer(io, &write_buffer);
-    const writer_impl = &writer.interface;
 
-    var http_server = http.Server.init(reader_impl, writer_impl);
-    var request = try http_server.receiveHead();
+    var http_server = http.Server.init(&reader.interface, &writer.interface);
 
-    switch (request.head.method) {
-        .GET => try handleGet(io, &request),
-        else => {
-            try request.respond("Not implemented.", .{ .status = .not_implemented });
-        },
+    while (true) {
+        var request = http_server.receiveHead() catch |err| switch (err) {
+            error.HttpConnectionClosing => return,
+            else => return err,
+        };
+
+        const keep_alive = request.head.keep_alive;
+
+        switch (request.head.method) {
+            .GET => try handleGet(io, &request),
+            else => {
+                try request.respond("Not implemented.", .{ .status = .not_implemented });
+            },
+        }
+
+        if (!keep_alive) return;
     }
 }
 
