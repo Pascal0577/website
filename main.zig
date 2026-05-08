@@ -41,7 +41,7 @@ pub fn main(init: std.process.Init) !void {
             continue;
         };
 
-        var fb: [17]u8 = undefined;
+        var fb: [22]u8 = undefined;
         var fb_writer = std.Io.Writer.fixed(&fb);
         try stream.socket.address.format(&fb_writer);
         const ip_address = fb[0..fb_writer.end];
