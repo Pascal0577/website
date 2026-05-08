@@ -7,8 +7,8 @@ var is_tty: bool = false;
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const gpa = init.gpa;
-    try setIsTty();
-    std.debug.print("is tty? {}\n", .{is_tty});
+    is_tty = try std.Io.File.stderr().isTty(io);
+    log(.debug, null, "is tty? {}\n", .{is_tty});
 
     const addr = try net.IpAddress.parse("0.0.0.0", 8080);
     var server = try addr.listen(io, .{ .reuse_address = true });
@@ -61,13 +61,6 @@ fn log(
     } else {
         std.debug.print("[{s}] " ++ format, .{@tagName(level)} ++ arguments);
     }
-}
-
-fn setIsTty() !void {
-    var t = std.Io.Threaded.init_single_threaded;
-    defer t.deinit();
-    const io = t.io();
-    is_tty = try std.Io.File.stderr().isTty(io);
 }
 
 fn handleConnectionWrapper(
