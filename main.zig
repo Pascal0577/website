@@ -3,6 +3,32 @@ const net = std.Io.net;
 const http = std.http;
 const PATH_MAX = std.Io.Dir.max_path_bytes;
 
+fn log(
+    comptime level: enum { info, debug, warn, err },
+    comptime src: ?std.builtin.SourceLocation,
+    comptime fmt: []const u8,
+    args: anytype,
+) void {
+    const prefix = switch (level) {
+        .info => "<6>",
+        .debug => "<7>",
+        .warn => "<5>",
+        .err => "<3>",
+    };
+
+    const format = switch (level) {
+        .info, .debug, .warn => prefix ++ fmt,
+        .err => prefix ++ "{s}: {} " ++ fmt,
+    };
+
+    const arguments = switch (level) {
+        .info, .debug, .warn => args,
+        .err => .{ src.?.fn_name, src.?.line } ++ args,
+    };
+
+    std.debug.print(format, arguments);
+}
+
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const addr = try net.IpAddress.parse("0.0.0.0", 8080);
@@ -11,18 +37,28 @@ pub fn main(init: std.process.Init) !void {
 
     while (true) {
         const stream = server.accept(io) catch |err| {
-            std.log.err("accept failed: {s}", .{@errorName(err)});
+            log(.warn, null, "accept failed: {s}\n", .{@errorName(err)});
             continue;
         };
 
-        _ = io.async(handleConnectionWrapper, .{ io, stream });
+        var fb: [17]u8 = undefined;
+        var fb_writer = std.Io.Writer.fixed(&fb);
+        try stream.socket.address.format(&fb_writer);
+        const ip_address = fb[0..fb_writer.end];
+        log(.info, null, "instantiated connection with {s}\n", .{ip_address});
+
+        _ = io.async(handleConnectionWrapper, .{ io, &stream, ip_address });
     }
 }
 
-fn handleConnectionWrapper(io: std.Io, stream: std.Io.net.Stream) error{Canceled}!void {
+fn handleConnectionWrapper(
+    io: std.Io,
+    stream: *const std.Io.net.Stream,
+    address: []const u8,
+) error{Canceled}!void {
     defer stream.close(io);
-    handleConnection(io, stream) catch |err| {
-        std.log.err("connection error: {s}", .{@errorName(err)});
+    handleConnection(io, stream, address) catch |err| {
+        log(.err, @src(), "connection error: {s}\n", .{@errorName(err)});
     };
 }
 
@@ -31,7 +67,11 @@ const RequestResult = union(enum) {
     timer: error{Canceled}!void,
 };
 
-fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
+fn handleConnection(
+    io: std.Io,
+    stream: *const std.Io.net.Stream,
+    addr: []const u8,
+) !void {
     var read_buffer: [4096]u8 = undefined;
     var reader = stream.reader(io, &read_buffer);
 
@@ -49,7 +89,8 @@ fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
         var request = switch (try select.await()) {
             .timer => {
                 select.cancelDiscard();
-                return error.Timeout;
+                log(.warn, null, "{s}: Request timed out\n", .{addr});
+                return;
             },
             .request => |r| blk: {
                 select.cancelDiscard();
@@ -60,31 +101,41 @@ fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
             },
         };
 
+        const method = request.head.method;
         const keep_alive = request.head.keep_alive;
 
-        switch (request.head.method) {
-            .GET => try handleGet(io, &request),
+        switch (method) {
+            .GET => try handleGet(io, &request, addr),
             else => {
+                log(.warn, null, "{s}: Client requested {s}, but it's not implemented\n", .{ addr, @tagName(method) });
+                log(.info, null, "{s}: Responding 501 NOT_IMPLEMENTED\n", .{addr});
                 try request.respond("Not implemented.", .{ .status = .not_implemented });
             },
         }
 
+        if (keep_alive) log(.info, null, "{s}: Keeping connection alive\n", .{addr});
         if (!keep_alive) return;
     }
 }
 
-fn handleGet(io: std.Io, request: *std.http.Server.Request) !void {
+fn handleGet(
+    io: std.Io,
+    request: *std.http.Server.Request,
+    addr: []const u8,
+) !void {
     const cwd = std.Io.Dir.cwd();
     const target = request.head.target;
-    std.debug.print("target: {s}\n", .{target});
+    log(.info, null, "{s}: Received GET method with target: {s}\n", .{ addr, target });
 
     if (std.mem.indexOf(u8, target, "..")) |_| {
+        log(.warn, null, "{s}: Tried to access file outside `web`", .{addr});
         try request.respond("", .{ .status = .forbidden });
         return;
     }
 
     if (std.mem.eql(u8, "/", target)) {
-        std.debug.print("redirecting to /home\n", .{});
+        log(.info, null, "{s}: Redirecting request to /home\n", .{addr});
+        log(.info, null, "{s}: Responding 302 FOUND\n", .{addr});
         try request.respond("", .{
             .status = .found,
             .extra_headers = &.{
@@ -99,43 +150,72 @@ fn handleGet(io: std.Io, request: *std.http.Server.Request) !void {
     const to_open = try std.fmt.bufPrint(&fmt_buf, "web{s}", .{target});
     const metadata = cwd.statFile(io, to_open, .{}) catch |e| switch (e) {
         error.FileNotFound => {
+            log(.warn, null, "{s}: Requested file `{s}` does not exist\n", .{ addr, to_open });
+            log(.info, null, "{s}: Responding 404 NOT_FOUND\n", .{addr});
             try request.respond("404 not found", .{ .status = .not_found });
             return;
         },
-        else => return e,
+        else => {
+            log(.err, @src(), "{s}: Error get file stat: {s}, {any}\n", .{ addr, to_open, e });
+            log(.info, null, "{s}: Responding 500 INTERNAL_SERVER_ERROR\n", .{addr});
+            try request.respond("500 internal server error", .{ .status = .internal_server_error });
+            return;
+        },
     };
 
     var path: []const u8 = to_open;
-    var file: std.Io.File = undefined;
-    switch (metadata.kind) {
-        .file, .sym_link => file = try cwd.openFile(io, to_open, .{}),
-        .directory => {
+    const file = switch (metadata.kind) {
+        .file, .sym_link => try cwd.openFile(io, to_open, .{}),
+        .directory => blk: {
             var dir_buf: [PATH_MAX]u8 = undefined;
             path = try std.fmt.bufPrint(&dir_buf, "{s}/index.html", .{to_open});
-            file = try cwd.openFile(io, path, .{});
+            break :blk try cwd.openFile(io, path, .{});
         },
         else => return error.UnexpectedFileType,
-    }
+    };
     defer file.close(io);
+
+    log(.info, null, "{s}: Responding with: {s}\n", .{ addr, path });
 
     const file_stat = try file.stat(io);
     var stream_buf: [4096]u8 = undefined;
-    var response = try request.respondStreaming(&stream_buf, .{
+    log(.info, null, "{s}: Responding 100 CONTINUE\n", .{addr});
+    var response = request.respondStreaming(&stream_buf, .{
         .content_length = file_stat.size,
         .respond_options = .{ .extra_headers = &.{
             .{ .name = "content-type", .value = mimeType(path) },
         } },
-    });
+    }) catch |err| switch (err) {
+        error.HttpExpectationFailed => return,
+        error.WriteFailed => {
+            log(.err, @src(), "{s}: Failed to respond 100 CONTINUE\n", .{addr});
+            log(.info, null, "{s}: Responding 500 INTERNAL_SERVER_ERROR\n", .{addr});
+            try request.respond(
+                "500 internal server error",
+                .{ .status = .internal_server_error },
+            );
+            return;
+        },
+    };
 
     var offset: u64 = 0;
     var buf: [4096]u8 = undefined;
     while (offset < file_stat.size) {
         const n = try file.readPositionalAll(io, &buf, offset);
         if (n == 0) break;
-        try response.writer.writeAll(buf[0..n]);
+        response.writer.writeAll(buf[0..n]) catch |err| {
+            log(.err, @src(), "{s}: Failed to write response: {}\n", .{ addr, err });
+            log(.info, null, "{s}: Responding 500 INTERNAL_SERVER_ERROR\n", .{addr});
+            try request.respond(
+                "500 internal server error",
+                .{ .status = .internal_server_error },
+            );
+            return;
+        };
         offset += n;
     }
 
+    log(.info, null, "{s}: Responding 200 OK\n", .{addr});
     try response.end();
 }
 
