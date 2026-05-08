@@ -50,7 +50,7 @@
                     description = "External network interface for NAT";
                 };
                 extraModules = lib.mkOption {
-                    type = lib.types.listOf lib.types.attrs;
+                    type = lib.types.listOf lib.types.deferredModule;
                     default = [];
                     description = "Extra modules to add to container configuration";
                 };
@@ -82,6 +82,7 @@
                     localAddress = "10.0.0.2";
                     restartIfChanged = true;
                     config = {
+                        imports = config.pscl-webserver.extraModules;
                         system.stateVersion = "26.05";
                         networking.firewall.allowedTCPPorts = [ 8080 ];
                         networking.useHostResolvConf = lib.mkForce false;
@@ -144,7 +145,7 @@
                                 DNSOverTLS = true;
                             };
                         };
-                    } // (lib.mergeAttrsList config.pscl-webserver.extraModules);
+                    };
                 };
             };
         };
