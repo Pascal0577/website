@@ -49,6 +49,11 @@
                     default = "eth0";
                     description = "External network interface for NAT";
                 };
+                extraModule = lib.mkOption {
+                    type = lib.types.listOf lib.types.attrs;
+                    default = [];
+                    description = "Extra modules to add to container configuration";
+                };
             };
 
             config = lib.mkIf config.pscl-webserver.enable {
@@ -139,7 +144,7 @@
                                 DNSOverTLS = true;
                             };
                         };
-                    };
+                    } // (lib.mergeAttrsList config.pscl-webserver.extraModules);
                 };
             };
         };
