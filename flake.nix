@@ -12,6 +12,7 @@
                     zls_0_16
                     zig-shell-completions
                     vscode-langservers-extracted
+                    python3
                 ];
             };
         });
