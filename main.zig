@@ -126,8 +126,6 @@ fn handleConnection(
         };
 
         const method = request.head.method;
-        const keep_alive = request.head.keep_alive;
-
         switch (method) {
             .GET => try handleGet(io, &request, addr),
             else => {
@@ -137,6 +135,7 @@ fn handleConnection(
             },
         }
 
+        const keep_alive = request.head.keep_alive;
         if (keep_alive) log(.info, null, "{s}: Keeping connection alive\n", .{addr});
         if (!keep_alive) return;
     }

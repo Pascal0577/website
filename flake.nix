@@ -28,7 +28,7 @@
                 buildPhase = ''
                     rm -rf $out
                     local cache=$(mktemp -d)
-                    ${pkgs.zig_0_16}/bin/zig build --release=safe --prefix $out --global-cache-dir "$cache"
+                    ${pkgs.zig_0_16}/bin/zig build -Doptimize=ReleaseSafe --prefix $out --global-cache-dir "$cache"
                 '';
 
                 installPhase = "true";
