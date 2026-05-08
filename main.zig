@@ -108,6 +108,7 @@ fn handleConnection(
     var http_server = http.Server.init(&reader.interface, &writer.interface);
 
     while (true) {
+        // Begin a race between a timer and receiving the request
         var buf: [2]RequestResult = undefined;
         var select = std.Io.Select(RequestResult).init(io, &buf);
 
@@ -123,11 +124,24 @@ fn handleConnection(
                 select.cancelDiscard();
                 break :blk r catch |err| switch (err) {
                     error.HttpConnectionClosing => return,
+                    error.HttpRequestTruncated => {
+                        log(.warn, null, "{s}: Connection closed before receiving headers\n", .{addr});
+                        return;
+                    },
                     error.ReadFailed => {
                         log(.warn, null, "{s}: Reading the HTTP request failed\n", .{addr});
                         return;
                     },
-                    else => return err,
+                    error.HttpHeadersOversize => {
+                        log(.warn, null, "{s}: Client-sent headers were too large\n", .{addr});
+                        writer.interface.writeAll("HTTP/1.1 431 Request Header Fields Too Large\r\n\r\n") catch {};
+                        return;
+                    },
+                    error.HttpHeadersInvalid => {
+                        log(.warn, null, "{s}: Client sent invalid headers\n", .{addr});
+                        writer.interface.writeAll("HTTP/1.1 400 Bad Request\r\n\r\n") catch {};
+                        return;
+                    },
                 };
             },
         };
