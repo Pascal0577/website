@@ -2,35 +2,13 @@ const std = @import("std");
 const net = std.Io.net;
 const http = std.http;
 const PATH_MAX = std.Io.Dir.max_path_bytes;
-
-fn log(
-    comptime level: enum { info, debug, warn, err },
-    comptime src: ?std.builtin.SourceLocation,
-    comptime fmt: []const u8,
-    args: anytype,
-) void {
-    const prefix = switch (level) {
-        .info => "<6>",
-        .debug => "<7>",
-        .warn => "<5>",
-        .err => "<3>",
-    };
-
-    const format = switch (level) {
-        .info, .debug, .warn => prefix ++ fmt,
-        .err => prefix ++ "{s}: {} " ++ fmt,
-    };
-
-    const arguments = switch (level) {
-        .info, .debug, .warn => args,
-        .err => .{ src.?.fn_name, src.?.line } ++ args,
-    };
-
-    std.debug.print(format, arguments);
-}
+var is_tty: bool = false;
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
+    try setIsTty();
+    std.debug.print("is tty? {}\n", .{is_tty});
+
     const addr = try net.IpAddress.parse("0.0.0.0", 8080);
     var server = try addr.listen(io, .{ .reuse_address = true });
     defer server.deinit(io);
@@ -49,6 +27,48 @@ pub fn main(init: std.process.Init) !void {
 
         _ = io.async(handleConnectionWrapper, .{ io, &stream, ip_address });
     }
+}
+
+fn log(
+    comptime level: enum { info, debug, warn, err },
+    comptime src: ?std.builtin.SourceLocation,
+    comptime fmt: []const u8,
+    args: anytype,
+) void {
+    const arguments = switch (level) {
+        .info, .debug, .warn => args,
+        .err => .{ src.?.fn_name, src.?.line } ++ args,
+    };
+
+    if (is_tty) {
+        const color = switch (level) {
+            .info => "\x1b[32m",
+            .debug => "\x1b[34m",
+            .warn => "\x1b[33m",
+            .err => "\x1b[31m",
+        };
+
+        const format = switch (level) {
+            .info, .debug, .warn => fmt,
+            .err => color ++ "{s}: {} " ++ fmt,
+        };
+
+        std.debug.print(color ++ "[{s}]\x1b[0m " ++ format, .{@tagName(level)} ++ arguments);
+    } else {
+        const format = switch (level) {
+            .info, .debug, .warn => fmt,
+            .err => "{s}: {} " ++ fmt,
+        };
+
+        std.debug.print("[{s}] " ++ format, .{@tagName(level)} ++ arguments);
+    }
+}
+
+fn setIsTty() !void {
+    var t = std.Io.Threaded.init_single_threaded;
+    defer t.deinit();
+    const io = t.io();
+    is_tty = try std.Io.File.stderr().isTty(io);
 }
 
 fn handleConnectionWrapper(
