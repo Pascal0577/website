@@ -39,31 +39,26 @@ fn log(
     comptime fmt: []const u8,
     args: anytype,
 ) void {
+    const format = switch (level) {
+        .info, .debug, .warn => fmt,
+        .err => "{s}: {} " ++ fmt,
+    };
+
     const arguments = switch (level) {
         .info, .debug, .warn => args,
         .err => .{ src.?.fn_name, src.?.line } ++ args,
     };
 
+    const color = switch (level) {
+        .info => "\x1b[32m",
+        .debug => "\x1b[34m",
+        .warn => "\x1b[33m",
+        .err => "\x1b[31m",
+    };
+
     if (is_tty) {
-        const color = switch (level) {
-            .info => "\x1b[32m",
-            .debug => "\x1b[34m",
-            .warn => "\x1b[33m",
-            .err => "\x1b[31m",
-        };
-
-        const format = switch (level) {
-            .info, .debug, .warn => fmt,
-            .err => color ++ "{s}: {} " ++ fmt,
-        };
-
         std.debug.print(color ++ "[{s}]\x1b[0m " ++ format, .{@tagName(level)} ++ arguments);
     } else {
-        const format = switch (level) {
-            .info, .debug, .warn => fmt,
-            .err => "{s}: {} " ++ fmt,
-        };
-
         std.debug.print("[{s}] " ++ format, .{@tagName(level)} ++ arguments);
     }
 }
