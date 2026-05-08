@@ -6,6 +6,7 @@ var is_tty: bool = false;
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
+    const gpa = init.gpa;
     try setIsTty();
     std.debug.print("is tty? {}\n", .{is_tty});
 
@@ -14,18 +15,21 @@ pub fn main(init: std.process.Init) !void {
     defer server.deinit(io);
 
     while (true) {
-        const stream = server.accept(io) catch |err| {
+        // It is handleConnectionWrapper's responsibility to free this memory
+        // since it is async
+        const owned_stream = try gpa.create(std.Io.net.Stream);
+        owned_stream.* = server.accept(io) catch |err| {
             log(.warn, null, "accept failed: {s}\n", .{@errorName(err)});
             continue;
         };
 
         var fb: [22]u8 = undefined;
         var fb_writer = std.Io.Writer.fixed(&fb);
-        try stream.socket.address.format(&fb_writer);
-        const ip_address = fb[0..fb_writer.end];
-        log(.info, null, "instantiated connection with {s}\n", .{ip_address});
+        try owned_stream.socket.address.format(&fb_writer);
+        const owned_ip_address = try gpa.dupe(u8, fb[0..fb_writer.end]);
+        log(.info, null, "instantiated connection with {s}\n", .{owned_ip_address});
 
-        _ = io.async(handleConnectionWrapper, .{ io, &stream, ip_address });
+        _ = io.async(handleConnectionWrapper, .{ io, gpa, owned_stream, owned_ip_address });
     }
 }
 
@@ -73,9 +77,12 @@ fn setIsTty() !void {
 
 fn handleConnectionWrapper(
     io: std.Io,
+    gpa: std.mem.Allocator,
     stream: *const std.Io.net.Stream,
     address: []const u8,
 ) error{Canceled}!void {
+    defer gpa.destroy(stream);
+    defer gpa.free(address);
     defer stream.close(io);
     handleConnection(io, stream, address) catch |err| {
         log(.err, @src(), "connection error: {s}\n", .{@errorName(err)});
