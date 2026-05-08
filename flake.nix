@@ -49,7 +49,7 @@
                     default = "eth0";
                     description = "External network interface for NAT";
                 };
-                extraModule = lib.mkOption {
+                extraModules = lib.mkOption {
                     type = lib.types.listOf lib.types.attrs;
                     default = [];
                     description = "Extra modules to add to container configuration";
