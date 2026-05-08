@@ -116,6 +116,10 @@ fn handleConnection(
                 select.cancelDiscard();
                 break :blk r catch |err| switch (err) {
                     error.HttpConnectionClosing => return,
+                    error.ReadFailed => {
+                        log(.warn, null, "{s}: Reading the HTTP request failed\n", .{addr});
+                        return;
+                    },
                     else => return err,
                 };
             },
