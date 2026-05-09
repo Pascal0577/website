@@ -3,6 +3,7 @@ const net = std.Io.net;
 const http = std.http;
 const PATH_MAX = std.Io.Dir.max_path_bytes;
 var is_tty: bool = false;
+var active_connections: std.atomic.Value(u32) = .init(0);
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -19,15 +20,20 @@ pub fn main(init: std.process.Init) !void {
         // since it is async
         const owned_stream = try gpa.create(std.Io.net.Stream);
         owned_stream.* = server.accept(io) catch |err| {
+            gpa.destroy(owned_stream);
             log(.warn, null, "accept failed: {s}\n", .{@errorName(err)});
             continue;
         };
+        _ = active_connections.fetchAdd(1, .seq_cst);
 
         var fb: [22]u8 = undefined;
         var fb_writer = std.Io.Writer.fixed(&fb);
         try owned_stream.socket.address.format(&fb_writer);
         const owned_ip_address = try gpa.dupe(u8, fb[0..fb_writer.end]);
-        log(.info, null, "instantiated connection with {s}\n", .{owned_ip_address});
+        log(.info, null, "instantiated connection with {s} ({d} active)\n", .{
+            owned_ip_address,
+            active_connections.load(.seq_cst),
+        });
 
         _ = io.async(handleConnectionWrapper, .{ io, gpa, owned_stream, owned_ip_address });
     }
@@ -69,8 +75,13 @@ fn handleConnectionWrapper(
     stream: *const std.Io.net.Stream,
     address: []const u8,
 ) error{Canceled}!void {
-    defer gpa.destroy(stream);
     defer gpa.free(address);
+    defer log(.info, null, "Dropped connection with {s} ({d} active)\n", .{
+        address,
+        active_connections.load(.seq_cst),
+    });
+    defer _ = active_connections.fetchSub(1, .seq_cst);
+    defer gpa.destroy(stream);
     defer stream.close(io);
     handleConnection(io, stream, address) catch |err| {
         log(.err, @src(), "connection error: {s}\n", .{@errorName(err)});
