@@ -147,7 +147,7 @@ fn handleConnection(
 
         const method = request.head.method;
         switch (method) {
-            .GET => try handleGet(io, &request, addr),
+            .GET, .HEAD => try handleGetAndHead(io, &request, addr),
             else => {
                 log(.warn, null, "{s}: Client requested {s}, but it's not implemented\n", .{ addr, @tagName(method) });
                 log(.info, null, "{s}: Responding 501 NOT_IMPLEMENTED\n", .{addr});
@@ -161,21 +161,9 @@ fn handleConnection(
     }
 }
 
-fn handleGet(
-    io: std.Io,
-    request: *std.http.Server.Request,
-    addr: []const u8,
-) !void {
-    const cwd = std.Io.Dir.cwd();
+// returns where the request gets redirected to or null if it doesn't need redirect
+fn redirect(request: *std.http.Server.Request, addr: []const u8) !?[]const u8 {
     const target = request.head.target;
-    log(.info, null, "{s}: Received GET method with target: {s}\n", .{ addr, target });
-
-    if (std.mem.indexOf(u8, target, "..")) |_| {
-        log(.warn, null, "{s}: Tried to access file outside `web`", .{addr});
-        try request.respond("", .{ .status = .forbidden });
-        return;
-    }
-
     if (std.mem.eql(u8, "/", target)) {
         log(.info, null, "{s}: Redirecting request to /home\n", .{addr});
         log(.info, null, "{s}: Responding 302 FOUND\n", .{addr});
@@ -185,8 +173,31 @@ fn handleGet(
                 .{ .name = "location", .value = "/home" },
             },
         });
+        return "/home";
+    }
+
+    return null;
+}
+
+// GET and HEAD are very similar, so we handle them both
+fn handleGetAndHead(
+    io: std.Io,
+    request: *std.http.Server.Request,
+    addr: []const u8,
+) !void {
+    const cwd = std.Io.Dir.cwd();
+    const target: []const u8 = request.head.target;
+    const method: std.http.Method = request.head.method;
+    log(.info, null, "{s}: Received {s} method with target: {s}\n", .{ addr, @tagName(method), target });
+
+    if (std.mem.indexOf(u8, target, "..")) |_| {
+        log(.warn, null, "{s}: Tried to access file outside `web`", .{addr});
+        try request.respond("", .{ .status = .forbidden });
         return;
     }
+
+    // the loop in `handleConnection` will handle the new request
+    if (try redirect(request, addr)) |_| return;
 
     var fmt_buf: [PATH_MAX]u8 = undefined;
     // `target` always begins with `/`
@@ -218,13 +229,11 @@ fn handleGet(
     };
     defer file.close(io);
 
-    log(.info, null, "{s}: Responding with: {s}\n", .{ addr, path });
-
-    const file_stat = try file.stat(io);
+    const file_size = (try file.stat(io)).size;
     var stream_buf: [4096]u8 = undefined;
     log(.info, null, "{s}: Responding 100 CONTINUE\n", .{addr});
     var response = request.respondStreaming(&stream_buf, .{
-        .content_length = file_stat.size,
+        .content_length = file_size,
         .respond_options = .{ .extra_headers = &.{
             .{ .name = "content-type", .value = mimeType(path) },
         } },
@@ -241,18 +250,20 @@ fn handleGet(
         },
     };
 
+    if (request.head.method == .HEAD) {
+        log(.info, null, "{s}: Responding 200 OK\n", .{addr});
+        try request.respond("", .{});
+        return;
+    }
+
+    log(.info, null, "{s}: Responding with: {s}\n", .{ addr, path });
     var offset: u64 = 0;
     var buf: [4096]u8 = undefined;
-    while (offset < file_stat.size) {
+    while (offset < file_size) {
         const n = try file.readPositionalAll(io, &buf, offset);
         if (n == 0) break;
         response.writer.writeAll(buf[0..n]) catch |err| {
             log(.err, @src(), "{s}: Failed to write response: {}\n", .{ addr, err });
-            log(.info, null, "{s}: Responding 500 INTERNAL_SERVER_ERROR\n", .{addr});
-            try request.respond(
-                "500 internal server error",
-                .{ .status = .internal_server_error },
-            );
             return;
         };
         offset += n;
