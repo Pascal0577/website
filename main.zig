@@ -191,7 +191,7 @@ fn handleGetAndHead(
     log(.info, null, "{s}: Received {s} method with target: {s}\n", .{ addr, @tagName(method), target });
 
     if (std.mem.indexOf(u8, target, "..")) |_| {
-        log(.warn, null, "{s}: Tried to access file outside `web`", .{addr});
+        log(.warn, null, "{s}: Tried to access file outside `web`\n", .{addr});
         try request.respond("", .{ .status = .forbidden });
         return;
     }
