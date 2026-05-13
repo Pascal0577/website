@@ -2,12 +2,14 @@ body {
   position: relative;
   min-height: 100vh;
   margin: 0;
+  background-color: #333C43;
 }
 
 body::before {
   content: '';
   position: fixed;
   inset: -18px;
+  background-color: #333C43;
   background-image: url("/assets/flowers.webp");
   background-size: cover;
   filter: blur(12px);
