@@ -236,6 +236,7 @@ fn handleGetAndHead(
         .content_length = file_size,
         .respond_options = .{ .extra_headers = &.{
             .{ .name = "content-type", .value = mimeType(path) },
+            .{ .name = "Cache-Control", .value = cacheControl(path) },
         } },
     }) catch |err| switch (err) {
         error.HttpExpectationFailed => return,
@@ -271,6 +272,12 @@ fn handleGetAndHead(
 
     log(.info, null, "{s}: Responding 200 OK\n", .{addr});
     try response.end();
+}
+
+fn cacheControl(path: []const u8) []const u8 {
+    if (std.mem.endsWith(u8, path, ".html")) return "no-cache";
+    if (std.mem.endsWith(u8, path, ".css")) return "no-cache";
+    return "public, max-age=604800";
 }
 
 fn mimeType(path: []const u8) []const u8 {
