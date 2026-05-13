@@ -112,7 +112,7 @@ fn handleConnection(
         var select = std.Io.Select(RequestResult).init(io, &buf);
 
         select.async(.request, std.http.Server.receiveHead, .{&http_server});
-        select.async(.timer, std.Io.sleep, .{ io, .fromSeconds(5), .awake });
+        select.async(.timer, std.Io.sleep, .{ io, .fromSeconds(1), .awake });
         var request = switch (try select.await()) {
             .timer => {
                 select.cancelDiscard();
