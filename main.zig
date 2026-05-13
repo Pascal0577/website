@@ -6,8 +6,9 @@ var is_tty: bool = false;
 var active_connections: std.atomic.Value(u32) = .init(0);
 
 pub fn main(init: std.process.Init) !void {
-    const io = init.io;
     const gpa = init.gpa;
+    var threaded = std.Io.Threaded.init(gpa, .{ .async_limit = .unlimited });
+    const io = threaded.io();
     is_tty = try std.Io.File.stderr().isTty(io);
     log(.debug, null, "is tty? {}\n", .{is_tty});
 
