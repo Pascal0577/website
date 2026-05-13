@@ -1,15 +1,26 @@
 {
-    inputs.nixpkgs.url = "nixpkgs";
+    inputs = {
+        nixpkgs.url = "nixpkgs";
+        zig.url = "github:silversquirl/zig-flake/compat";
+        zls.url = "github:zigtools/zls";
 
-    outputs = { self, nixpkgs, ... }:
+        zig.inputs.nixpkgs.follows = "nixpkgs";
+        zls.inputs.nixpkgs.follows = "nixpkgs";
+        zls.inputs.zig-overlay.follows = "zig";
+    };
+
+    outputs = { self, nixpkgs, zls, zig, ... }:
     let
         forAllSystems = f: builtins.mapAttrs f nixpkgs.legacyPackages;
     in {
-        devShells = forAllSystems (system: pkgs: {
+        devShells = forAllSystems (system: pkgs: let
+            zig-pkg = zig.packages.${system}.nightly;
+            zls-pkg = zls.packages.${system}.zls;
+        in {
             default = pkgs.mkShellNoCC {
                 buildInputs = with pkgs; [
-                    zig_0_16
-                    zls_0_16
+                    zig-pkg
+                    zls-pkg
                     zig-shell-completions
                     vscode-langservers-extracted
                     python3
@@ -17,7 +28,9 @@
             };
         });
 
-        packages = forAllSystems (system: pkgs: {
+        packages = forAllSystems (system: pkgs: let
+            zig-pkg = zig.packages.${system}.nightly;
+        in {
             default = pkgs.stdenv.mkDerivation {
                 name = "pscl-webserver";
                 version = "1.0.0";
@@ -28,7 +41,7 @@
                 buildPhase = ''
                     rm -rf $out
                     local cache=$(mktemp -d)
-                    ${pkgs.zig_0_16}/bin/zig build -Doptimize=ReleaseSafe --prefix $out --global-cache-dir "$cache"
+                    ${zig-pkg}/bin/zig build -Doptimize=ReleaseSafe --prefix $out --global-cache-dir "$cache"
                 '';
 
                 installPhase = "true";
