@@ -1,0 +1,173 @@
+body {
+  position: relative;
+  min-height: 100vh;
+  margin: 0;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: -18px;
+  background-image: url("/assets/flowers.webp");
+  background-size: cover;
+  filter: blur(12px);
+  z-index: -1;
+}
+
+h1 {
+  position: relative;
+  color: #D3C6AA;
+  text-align: center;
+  margin: 20px auto;
+  padding: 5px;
+  width: fit-content;
+  display: flex;
+  justify-content: center;
+}
+
+.text-block {
+  color: #D3C6AA;
+  text-align: start;
+  margin: 10px auto;
+  width: fit-content;
+  position: relative;
+  padding: 5px;
+}
+
+h1::before,
+.text-block::before {
+  content: '';
+  position: absolute;
+  inset: 0px;
+  backdrop-filter: blur(8px);
+  z-index: -1;
+  border-radius: 3px;
+
+  background:
+    linear-gradient(to bottom right,
+      #333C43A0,
+      #333C43A0) padding-box,
+    linear-gradient(to bottom right,
+      #333C43A0,
+      #333C43A0) border-box;
+  border: 2px solid transparent;
+}
+
+.card-list {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin: 2.5rem auto;
+}
+
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 135deg;
+  inherits: false;
+}
+
+.card {
+  --color: #D3C6AA;
+  color: var(--color);
+  width: 180px;
+  position: relative;
+  padding-left: 3px;
+  padding-right: 3px;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  font-size: 24px;
+  text-decoration: none;
+  background: linear-gradient(#333C4380, #333C4380) padding-box,
+    linear-gradient(var(--angle),
+      #E69875A0,
+      #333C43a0) border-box;
+  border: 2px solid transparent;
+  border-radius: 3px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0px;
+    backdrop-filter: blur(8px);
+    z-index: -1;
+    border-radius: 3px;
+  }
+
+  svg {
+    height: 2.75rem;
+    width: 2.75rem;
+    vertical-align: middle;
+    fill: var(--color);
+  }
+
+  &:hover {
+    animation: cardAnimation 2s linear infinite;
+  }
+}
+
+@keyframes cardAnimation {
+  to {
+    --angle: 495deg;
+  }
+}
+
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  width: 100%;
+
+  a {
+    text-decoration: none;
+  }
+}
+
+.statusline-one svg,
+.statusline-two svg,
+.statusline-rest svg {
+  vertical-align: middle;
+  fill: var(--color);
+}
+
+.statusline-one:hover,
+.statusline-two:hover {
+  background-color: oklch(from var(--bg) calc(l - 0.1) c h);
+}
+
+.statusline-one {
+  --bg: #A7C080;
+  --color: #293136;
+  background-color: var(--bg);
+  color: var(--color);
+  margin: 0px;
+  padding: 3px;
+}
+
+.statusline-two {
+  --bg: #D3C6AA;
+  --color: #293136;
+  background-color: var(--bg);
+  color: var(--color);
+  margin: 0px;
+  padding: 3px;
+}
+
+.statusline-rest {
+  --bg: #333C43;
+  --color: #D3C6AA;
+  background-color: var(--bg);
+  color: var(--color);
+  flex: 1;
+  margin: 0px;
+  padding: 3px;
+
+  &:hover {
+    background-color: #293136
+  }
+}
