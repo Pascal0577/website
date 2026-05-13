@@ -7,8 +7,11 @@ var active_connections: std.atomic.Value(u32) = .init(0);
 
 pub fn main(init: std.process.Init) !void {
     const gpa = init.gpa;
-    var threaded = std.Io.Threaded.init(gpa, .{ .async_limit = .unlimited });
-    const io = threaded.io();
+    var evented: std.Io.Evented = undefined;
+    try evented.init(gpa, .{});
+    defer evented.deinit();
+    const io = evented.io();
+
     is_tty = try std.Io.File.stderr().isTty(io);
     log(.debug, null, "is tty? {}\n", .{is_tty});
 
