@@ -1,15 +1,21 @@
+@import '../everforest.css';
+
+:root {
+  --bg-translucent: color-mix(in srgb, var(--bg-base) 50%, transparent);
+}
+
 body {
   position: relative;
   min-height: 100vh;
   margin: 0;
-  background-color: #333C43;
+  background-color: var(--bg-base);
 }
 
 body::before {
   content: '';
   position: fixed;
   inset: -18px;
-  background-color: #333C43;
+  background-color: var(--bg-base);
   background-image: url("/assets/flowers.webp");
   background-size: cover;
   filter: blur(12px);
@@ -18,7 +24,7 @@ body::before {
 
 h1 {
   position: relative;
-  color: #D3C6AA;
+  color: var(--text-primary);
   text-align: center;
   margin: 20px auto;
   padding: 5px;
@@ -28,7 +34,7 @@ h1 {
 }
 
 .text-block {
-  color: #D3C6AA;
+  color: var(--text-primary);
   text-align: start;
   margin: 10px auto;
   width: fit-content;
@@ -47,11 +53,11 @@ h1::before,
 
   background:
     linear-gradient(to bottom right,
-      #333C43A0,
-      #333C43A0) padding-box,
+      var(--bg-translucent),
+      var(--bg-translucent)) padding-box,
     linear-gradient(to bottom right,
-      #333C43A0,
-      #333C43A0) border-box;
+      var(--bg-translucent),
+      var(--bg-translucent)) border-box;
   border: 2px solid transparent;
 }
 
@@ -70,7 +76,7 @@ h1::before,
 }
 
 .card {
-  --color: #D3C6AA;
+  --color: var(--text-primary);
   color: var(--color);
   width: 180px;
   position: relative;
@@ -82,10 +88,12 @@ h1::before,
   align-items: center;
   font-size: 24px;
   text-decoration: none;
-  background: linear-gradient(#333C4380, #333C4380) padding-box,
+  background:
+    linear-gradient(var(--bg-translucent),
+      var(--bg-translucent)) padding-box,
     linear-gradient(var(--angle),
-      #E69875A0,
-      #333C43a0) border-box;
+      color-mix(in srgb, var(--accent-orange) 50%, transparent),
+      var(--bg-translucent)) border-box;
   border: 2px solid transparent;
   border-radius: 3px;
 
@@ -137,32 +145,31 @@ h1::before,
   fill: var(--color);
 }
 
-.statusline-one:hover,
-.statusline-two:hover {
-  background-color: oklch(from var(--bg) calc(l - 0.1) c h);
-}
-
 .statusline-one {
-  --bg: #A7C080;
-  --color: #293136;
-  background-color: var(--bg);
-  color: var(--color);
+  background-color: var(--statusline-1);
+  color: var(--bg-dim);
   margin: 0px;
   padding: 3px;
+
+  &:hover {
+    background-color: oklch(from var(--bg) calc(l - 0.1) c h);
+  }
 }
 
 .statusline-two {
-  --bg: #D3C6AA;
-  --color: #293136;
-  background-color: var(--bg);
-  color: var(--color);
+  background-color: var(--statusline-2);
+  color: var(--bg-dim);
   margin: 0px;
   padding: 3px;
+
+  &:hover {
+    background-color: oklch(from var(--bg) calc(l - 0.1) c h);
+  }
 }
 
 .statusline-rest {
-  --bg: #333C43;
-  --color: #D3C6AA;
+  --bg: var(--bg-base);
+  --color: var(--text-primary);
   background-color: var(--bg);
   color: var(--color);
   flex: 1;
@@ -170,6 +177,6 @@ h1::before,
   padding: 3px;
 
   &:hover {
-    background-color: #293136
+    background-color: var(--bg-dim)
   }
 }
