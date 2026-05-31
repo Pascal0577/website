@@ -152,7 +152,7 @@ h1::before,
   padding: 3px;
 
   &:hover {
-    background-color: oklch(from var(--bg) calc(l - 0.1) c h);
+    background-color: oklch(from var(--statusline-1) calc(l - 0.1) c h);
   }
 }
 
@@ -163,7 +163,7 @@ h1::before,
   padding: 3px;
 
   &:hover {
-    background-color: oklch(from var(--bg) calc(l - 0.1) c h);
+    background-color: oklch(from var(--statusline-2) calc(l - 0.1) c h);
   }
 }
 
