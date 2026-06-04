@@ -118,6 +118,7 @@
                                 Type = "simple";
                                 ExecStart = lib.getExe pkg;
                                 User = "pscl-webserver";
+                                Restart = "on-failure";
                                 StateDirectory = "pscl-webserver";
                                 WorkingDirectory = "/var/lib/pscl-webserver/website";
                             };
@@ -139,6 +140,7 @@
                                 Type = "oneshot";
                                 User = "pscl-webserver";
                                 StateDirectory = "pscl-webserver";
+                                Restart = "on-failure";
                             };
                         };
 
